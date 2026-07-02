@@ -1,0 +1,24 @@
+# Virtual Environment
+.venv/
+venv/
+ENV/
+
+# Python compiled files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Django local database
+db.sqlite3
+
+# Frontend dependencies
+chatire-frontend/node_modules/
+node_modules/
+
+# IDE / System files
+.gemini/
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
