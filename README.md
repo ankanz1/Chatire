@@ -1,4 +1,5 @@
 Chatire
+
 A real‑time chat application built with Django, Djoser, REST framework, Vue.js, and WebSockets.
 
 Features
