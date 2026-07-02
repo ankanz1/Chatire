@@ -128,6 +128,11 @@ Make sure you have the following installed:
     *Open [http://localhost:8080](http://localhost:8080) to access the application.*
 
 ---
+## Working Demo:
+<img width="1911" height="975" alt="image" src="https://github.com/user-attachments/assets/41d92719-a65c-4d0a-8f4f-3cbbb9f244c1" />
+
+
+---
 
 ## 🔮 Futuristic Roadmap
 - [ ] **End-to-End Encryption (E2EE)**: Implementation of Double Ratchet algorithm directly in-browser using Web Cryptography API.
