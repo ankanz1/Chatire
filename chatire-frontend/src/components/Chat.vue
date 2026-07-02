@@ -75,6 +75,8 @@ const $ = window.jQuery
 export default {
   data () {
     return {
+      loading: true,
+      notification: new Audio('../../static/plucky.ogg'),
       sessionStarted: false,
       messages: [
         {"status":"SUCCESS","uri":"040213b14a02451","message":"Hello!","user":{"id":1,"username":"danidee","email":"osaetindaniel@gmail.com","first_name":"","last_name":""}},
@@ -90,16 +92,44 @@ export default {
     // Setup headers for all requests
     $.ajaxSetup({
       beforeSend: function(xhr) {
-        xhr.setRequestHeader('Authorization', `Token ${sessionStorage.getItem('authToken')}`)
+        xhr.setRequestHeader('Authorization', `JWT ${sessionStorage.getItem('authToken')}`)
       }
     })
 
     if (this.$route.params.uri) {
       this.joinChatSession()
+      this.connectToWebSocket()
+    }
+    // Simulate loading delay
+    setTimeout(() => { this.loading = false }, 2000);
+    // Refresh JWT every 4 minutes
+    setInterval(this.refreshToken, 240000)
+  },
+
+  updated () {
+    // Scroll to bottom of Chat window
+    const chatBody = this.$refs.chatBody
+    if (chatBody) {
+      chatBody.scrollTop = chatBody.scrollHeight
+    }
+  },
+
+  watch: {
+    '$route' (to, from) {
+      if (to.params.uri && to.params.uri !== from.params.uri) {
+        this.joinChatSession()
+        this.connectToWebSocket()
+      }
     }
   },
 
   methods: {
+    refreshToken() {
+      const data = { token: sessionStorage.getItem('authToken') };
+      $.post('http://127.0.0.1:8000/this/is/hard/to/find/', data, (response) => {
+        sessionStorage.setItem('authToken', response.token);
+      });
+    },
     startChatSession () {
       $.post('http://localhost:8000/api/chats/', (data) => {
         alert("A new session has been created you'll be redirected automatically")
@@ -115,7 +145,6 @@ export default {
       const data = {message: this.message}
 
       $.post(`http://localhost:8000/api/chats/${this.$route.params.uri}/messages/`, data, (data) => {
-        this.messages.push(data)
         this.message = '' // clear the message after sending
       })
       .fail((response) => {
@@ -145,7 +174,39 @@ export default {
     fetchChatSessionHistory () {
       $.get(`http://localhost:8000/api/chats/${this.$route.params.uri}/messages/`, (data) => {
         this.messages = data.messages
+        setTimeout(() => { this.loading = false }, 2000)
       })
+    },
+
+    connectToWebSocket () {
+      const websocket = new WebSocket(`ws://localhost:8081/${this.$route.params.uri}`)
+      websocket.onopen = this.onOpen
+      websocket.onclose = this.onClose
+      websocket.onmessage = this.onMessage
+      websocket.onerror = this.onError
+    },
+
+    onOpen (event) {
+      console.log('Connection opened.', event.data)
+    },
+
+    onClose (event) {
+      console.log('Connection closed.', event.data)
+
+      // Try and Reconnect after five seconds
+      setTimeout(this.connectToWebSocket, 5000)
+    },
+
+    onMessage (event) {
+      const message = JSON.parse(event.data)
+      this.messages.push(message)
+      if (!document.hasFocus()) {
+        this.notification.play()
+      }
+    },
+
+    onError (event) {
+      alert('An error occurred:', event.data)
     }
   }
 }

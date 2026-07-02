@@ -1,0 +1,68 @@
+"""Receive messages from RabbitMQ and send them over the websocket."""
+from gevent import monkey
+monkey.patch_all()
+import asyncio
+import websockets
+import pika
+from json import dumps
+
+
+async def handler(websocket):
+    """Setup the WebSocket connection and stream messages from RabbitMQ."""
+    # Get exchange name from path (e.g., '/31b1a70ef8264ad/' -> '31b1a70ef8264ad')
+    exchange = websocket.request.path.strip('/')
+    print(f"Client connected. Binding to RabbitMQ exchange: {exchange}")
+
+    # Establish connection to RabbitMQ
+    connection = pika.BlockingConnection(
+        pika.ConnectionParameters(host='localhost')
+    )
+    channel = connection.channel()
+
+    channel.exchange_declare(
+        exchange=exchange, exchange_type='fanout'
+    )
+
+    # exclusive means the queue should be deleted once the connection is closed
+    result = channel.queue_declare(queue='', exclusive=True)
+    queue_name = result.method.queue
+    channel.queue_bind(exchange=exchange, queue=queue_name)
+
+    try:
+        # Stream messages from RabbitMQ to WebSocket
+        while True:
+            # basic_get is non-blocking in terms of thread execution,
+            # allowing us to yield control back to asyncio event loop
+            await asyncio.sleep(0.1)
+            
+            method_frame, header_frame, body = channel.basic_get(queue=queue_name)
+            if method_frame:
+                # Send the message to the client
+                message = body.decode('utf-8')
+                await websocket.send(message)
+                # Acknowledge the message
+                channel.basic_ack(delivery_tag=method_frame.delivery_tag)
+                
+            # Perform a quick non-blocking check to see if client disconnected
+            try:
+                # If recv() finishes or raises ConnectionClosed, it handles disconnect.
+                # Since we don't expect client messages, we just check if it's closed.
+                await asyncio.wait_for(websocket.recv(), timeout=0.001)
+            except asyncio.TimeoutError:
+                pass
+
+    except websockets.exceptions.ConnectionClosed:
+        print(f"Client disconnected from exchange: {exchange}")
+    finally:
+        connection.close()
+        print(f"RabbitMQ connection closed for exchange: {exchange}")
+
+
+async def main():
+    async with websockets.serve(handler, "localhost", 8081):
+        print("WebSocket server started on ws://localhost:8081")
+        await asyncio.Future()  # run forever
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
