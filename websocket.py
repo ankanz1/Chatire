@@ -1,10 +1,26 @@
 """Receive messages from RabbitMQ and send them over the websocket."""
 from gevent import monkey
 monkey.patch_all()
+import os
 import asyncio
 import websockets
+import websockets.server
 import pika
 from json import dumps
+
+
+# Monkey-patch to accept Connection: keep-alive and other non-standard connection headers
+original_process_request = websockets.server.ServerProtocol.process_request
+
+def patched_process_request(self, request):
+    connection_values = request.headers.get_all("Connection")
+    if not any("upgrade" in val.lower() for val in connection_values):
+        if "Connection" in request.headers:
+            del request.headers["Connection"]
+        request.headers["Connection"] = "Upgrade"
+    return original_process_request(self, request)
+
+websockets.server.ServerProtocol.process_request = patched_process_request
 
 
 async def handler(websocket):
@@ -13,9 +29,9 @@ async def handler(websocket):
     exchange = websocket.request.path.strip('/')
     print(f"Client connected. Binding to RabbitMQ exchange: {exchange}")
 
-    # Establish connection to RabbitMQ
+    rabbitmq_url = os.environ.get('RABBITMQ_URL', 'amqp://guest:guest@localhost:5672//')
     connection = pika.BlockingConnection(
-        pika.ConnectionParameters(host='localhost')
+        pika.URLParameters(rabbitmq_url)
     )
     channel = connection.channel()
 

@@ -12,8 +12,9 @@ class BroadCastWebSocketChannel(BaseNotificationChannel):
 
     def _connect(self):
         """Connect to the RabbitMQ server."""
+        from django.conf import settings
         connection = pika.BlockingConnection(
-            pika.ConnectionParameters(host='localhost')
+            pika.URLParameters(settings.RABBITMQ_URL)
         )
         channel = connection.channel()
 
