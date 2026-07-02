@@ -22,12 +22,14 @@ class BroadCastWebSocketChannel(BaseNotificationChannel):
 
     def construct_message(self):
         """Construct the message to be sent."""
+        print("BroadCastWebSocketChannel construct_message called!")
         extra_data = self.notification_kwargs['extra_data']
 
         return dumps(extra_data['message'])
 
     def notify(self, message):
         """put the message of the RabbitMQ queue."""
+        print(f"BroadCastWebSocketChannel notify called with message: {message}")
         connection, channel = self._connect()
 
         uri = self.notification_kwargs['extra_data']['uri']
@@ -36,3 +38,4 @@ class BroadCastWebSocketChannel(BaseNotificationChannel):
         channel.basic_publish(exchange=uri, routing_key='', body=message)
 
         connection.close()
+        print("BroadCastWebSocketChannel notify completed successfully!")

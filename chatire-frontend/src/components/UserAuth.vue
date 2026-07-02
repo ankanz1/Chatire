@@ -86,7 +86,9 @@
           sessionStorage.setItem('authToken', data.access)
           sessionStorage.setItem('refreshToken', data.refresh)
           sessionStorage.setItem('username', this.username)
-          this.$router.push('/chats')
+          
+          const redirect = this.$route.query.redirect || '/chats'
+          this.$router.push(redirect)
         })
         .fail((response) => {
           alert(response.responseText)

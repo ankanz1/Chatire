@@ -24,7 +24,7 @@ router.beforeEach((to, from, next) => {
   if (sessionStorage.getItem('authToken') !== null || to.path === '/auth') {
     next()
   } else {
-    next('/auth')
+    next({ path: '/auth', query: { redirect: to.fullPath } })
   }
 })
 
