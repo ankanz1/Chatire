@@ -148,7 +148,7 @@ CELERY_TASK_ALWAYS_EAGER = True
 CELERY_TASK_EAGER_PROPAGATES = True
 
 # notifications settings
-RABBITMQ_URL = os.environ.get('RABBITMQ_URL', 'amqp://guest:guest@localhost:5672//')
+RABBITMQ_URL = os.environ.get('RABBITMQ_URL', 'amqp://guest:guest@localhost:5672/')
 
 NOTIFICATIONS_CHANNELS = {
    'websocket': 'chat.channels.BroadCastWebSocketChannel'

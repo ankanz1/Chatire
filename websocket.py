@@ -29,7 +29,7 @@ async def handler(websocket):
     exchange = websocket.request.path.strip('/')
     print(f"Client connected. Binding to RabbitMQ exchange: {exchange}")
 
-    rabbitmq_url = os.environ.get('RABBITMQ_URL', 'amqp://guest:guest@localhost:5672//')
+    rabbitmq_url = os.environ.get('RABBITMQ_URL', 'amqp://guest:guest@localhost:5672/')
     connection = pika.BlockingConnection(
         pika.URLParameters(rabbitmq_url)
     )
