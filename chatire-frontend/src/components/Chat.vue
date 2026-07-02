@@ -125,9 +125,12 @@ export default {
 
   methods: {
     refreshToken() {
-      const data = { token: sessionStorage.getItem('authToken') };
-      $.post('http://127.0.0.1:8000/this/is/hard/to/find/', data, (response) => {
-        sessionStorage.setItem('authToken', response.token);
+      const data = { refresh: sessionStorage.getItem('refreshToken') };
+      $.post('http://localhost:8000/this/is/hard/to/find/', data, (response) => {
+        sessionStorage.setItem('authToken', response.access);
+        if (response.refresh) {
+          sessionStorage.setItem('refreshToken', response.refresh);
+        }
       });
     },
     startChatSession () {
