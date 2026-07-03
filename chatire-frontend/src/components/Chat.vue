@@ -541,7 +541,7 @@ export default {
     },
 
     fetchChatHistory () {
-      $.get('${process.env.API_URL}/api/chats/', (data) => {
+      $.get(`${process.env.API_URL}/api/chats/`, (data) => {
         this.chatSessions = data.sessions || []
       })
     },
@@ -608,7 +608,7 @@ export default {
 
     startDirectMessage (targetUsername) {
       // Create session, then add the user to it
-      $.post('${process.env.API_URL}/api/chats/', (data) => {
+      $.post(`${process.env.API_URL}/api/chats/`, (data) => {
         const uri = data.uri
         $.ajax({
           url: `${process.env.API_URL}/api/chats/${uri}/`,
@@ -705,7 +705,7 @@ export default {
     /* ── JWT refresh ───────────────────────────────────────── */
     refreshToken () {
       const data = { refresh: sessionStorage.getItem('refreshToken') }
-      $.post('${process.env.API_URL}/this/is/hard/to/find/', data, (response) => {
+      $.post(`${process.env.API_URL}/this/is/hard/to/find/`, data, (response) => {
         sessionStorage.setItem('authToken', response.access)
         if (response.refresh) sessionStorage.setItem('refreshToken', response.refresh)
       })
@@ -714,7 +714,7 @@ export default {
     /* ── Chat session ──────────────────────────────────────── */
     startChatSession (groupName = null) {
       const postData = groupName ? { name: groupName } : {}
-      $.post('${process.env.API_URL}/api/chats/', postData, (data) => {
+      $.post(`${process.env.API_URL}/api/chats/`, postData, (data) => {
         this.sessionStarted = true
         this.$router.push(`/chats/${data.uri}/`)
         this.fetchChatHistory()
