@@ -137,10 +137,10 @@ Make sure you have the following installed:
 ---
 
 ## 🔮 Futuristic Roadmap
-- [ ] **End-to-End Encryption (E2EE)**: Implementation of Double Ratchet algorithm directly in-browser using Web Cryptography API.
-- [ ] **Threaded Groups by Default**: Introducing advanced hierarchical message threading for high-density group chats.
-- [ ] **Local-First & Sync**: Offline database caching utilizing IndexedDB with automatic sync conflict resolution upon reconnection.
-- [ ] **Zero-Knowledge Onboarding**: Signup and verification powered by cryptographic keypair exchanges with no passwords stored.
+- [ ] Matrix Network Protocol Integration: Allow cross-server federated chatting utilizing Matrix room protocols.
+- [ ] End-to-End Encryption (E2EE): Implementation of the Double Ratchet cryptographic algorithm directly in-browser using Web Crypto APIs.
+- [ ] Local-First Synchronization: Cache messages locally using IndexedDB, syncing changes automatically once internet connectivity is restored.
+- [ ] Zero-Knowledge User Verification: Logins authenticated purely via secure cryptographic key exchanges—eliminating database-side passwords.
 
 ---
 
