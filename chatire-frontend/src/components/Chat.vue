@@ -541,7 +541,7 @@ export default {
     },
 
     fetchChatHistory () {
-      $.get('http://localhost:8000/api/chats/', (data) => {
+      $.get('${process.env.API_URL}/api/chats/', (data) => {
         this.chatSessions = data.sessions || []
       })
     },
@@ -600,7 +600,7 @@ export default {
         return
       }
       this.directSearchDebounce = setTimeout(() => {
-        $.get(`http://localhost:8000/api/users/search/?q=${this.userSearchQuery}`, (data) => {
+        $.get(`${process.env.API_URL}/api/users/search/?q=${this.userSearchQuery}`, (data) => {
           this.searchResults = data.users || []
         })
       }, 300)
@@ -608,10 +608,10 @@ export default {
 
     startDirectMessage (targetUsername) {
       // Create session, then add the user to it
-      $.post('http://localhost:8000/api/chats/', (data) => {
+      $.post('${process.env.API_URL}/api/chats/', (data) => {
         const uri = data.uri
         $.ajax({
-          url: `http://localhost:8000/api/chats/${uri}/`,
+          url: `${process.env.API_URL}/api/chats/${uri}/`,
           data: { username: targetUsername },
           type: 'PATCH',
           success: () => {
@@ -633,7 +633,7 @@ export default {
         return
       }
       this.memberSearchDebounce = setTimeout(() => {
-        $.get(`http://localhost:8000/api/users/search/?q=${this.memberSearchQuery}`, (data) => {
+        $.get(`${process.env.API_URL}/api/users/search/?q=${this.memberSearchQuery}`, (data) => {
           // Filter out users already in activeMembers
           const existingUsernames = this.activeMembers.map(m => m.username)
           this.inviteSearchResults = (data.users || []).filter(u => !existingUsernames.includes(u.username))
@@ -644,7 +644,7 @@ export default {
     inviteUserToRoom (targetUsername) {
       const uri = this.$route.params.uri
       $.ajax({
-        url: `http://localhost:8000/api/chats/${uri}/`,
+        url: `${process.env.API_URL}/api/chats/${uri}/`,
         data: { username: targetUsername },
         type: 'PATCH',
         success: (data) => {
@@ -667,7 +667,7 @@ export default {
         return
       }
       this.headerSearchDebounce = setTimeout(() => {
-        $.get(`http://localhost:8000/api/users/search/?q=${this.headerMemberSearchQuery}`, (data) => {
+        $.get(`${process.env.API_URL}/api/users/search/?q=${this.headerMemberSearchQuery}`, (data) => {
           const existingUsernames = this.activeMembers.map(m => m.username)
           this.headerInviteSearchResults = (data.users || []).filter(u => !existingUsernames.includes(u.username))
         })
@@ -677,7 +677,7 @@ export default {
     inviteUserFromHeader (targetUsername) {
       const uri = this.$route.params.uri
       $.ajax({
-        url: `http://localhost:8000/api/chats/${uri}/`,
+        url: `${process.env.API_URL}/api/chats/${uri}/`,
         data: { username: targetUsername },
         type: 'PATCH',
         success: (data) => {
@@ -698,14 +698,14 @@ export default {
       if (!this.$route.params.uri || !this.message.trim()) return
       clearTimeout(this.typingDebounce)
       this.typingDebounce = setTimeout(() => {
-        $.post(`http://localhost:8000/api/chats/${this.$route.params.uri}/typing/`)
+        $.post(`${process.env.API_URL}/api/chats/${this.$route.params.uri}/typing/`)
       }, 350)
     },
 
     /* ── JWT refresh ───────────────────────────────────────── */
     refreshToken () {
       const data = { refresh: sessionStorage.getItem('refreshToken') }
-      $.post('http://localhost:8000/this/is/hard/to/find/', data, (response) => {
+      $.post('${process.env.API_URL}/this/is/hard/to/find/', data, (response) => {
         sessionStorage.setItem('authToken', response.access)
         if (response.refresh) sessionStorage.setItem('refreshToken', response.refresh)
       })
@@ -714,7 +714,7 @@ export default {
     /* ── Chat session ──────────────────────────────────────── */
     startChatSession (groupName = null) {
       const postData = groupName ? { name: groupName } : {}
-      $.post('http://localhost:8000/api/chats/', postData, (data) => {
+      $.post('${process.env.API_URL}/api/chats/', postData, (data) => {
         this.sessionStarted = true
         this.$router.push(`/chats/${data.uri}/`)
         this.fetchChatHistory()
@@ -724,7 +724,7 @@ export default {
 
     postMessage () {
       const data = { message: this.message }
-      $.post(`http://localhost:8000/api/chats/${this.$route.params.uri}/messages/`, data, () => {
+      $.post(`${process.env.API_URL}/api/chats/${this.$route.params.uri}/messages/`, data, () => {
         this.message = ''
       })
       .fail(() => this.showToast('Failed to send message.', 'error'))
@@ -733,7 +733,7 @@ export default {
     joinChatSession () {
       const uri = this.$route.params.uri
       $.ajax({
-        url: `http://localhost:8000/api/chats/${uri}/`,
+        url: `${process.env.API_URL}/api/chats/${uri}/`,
         data: { username: this.username },
         type: 'PATCH',
         success: (data) => {
@@ -751,7 +751,7 @@ export default {
     },
 
     fetchChatSessionHistory () {
-      $.get(`http://localhost:8000/api/chats/${this.$route.params.uri}/messages/`, (data) => {
+      $.get(`${process.env.API_URL}/api/chats/${this.$route.params.uri}/messages/`, (data) => {
         this.messages = data.messages
         this.currentSessionName = data.name
         this.shouldAutoScroll = true
@@ -761,7 +761,7 @@ export default {
 
     /* ── WebSocket ─────────────────────────────────────────── */
     connectToWebSocket () {
-      const websocket = new WebSocket(`ws://localhost:8081/${this.$route.params.uri}`)
+      const websocket = new WebSocket(`${process.env.WS_URL}/${this.$route.params.uri}`)
       websocket.onopen  = this.onOpen
       websocket.onclose = this.onClose
       websocket.onmessage = this.onMessage
