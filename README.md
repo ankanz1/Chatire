@@ -129,7 +129,8 @@ Make sure you have the following installed:
 
 ---
 ## Working Demo:
-<img width="1911" height="975" alt="image" src="https://github.com/user-attachments/assets/41d92719-a65c-4d0a-8f4f-3cbbb9f244c1" />
+<img width="1906" height="968" alt="image" src="https://github.com/user-attachments/assets/7c095881-158f-4d38-98fd-dcc50fd041ec" />
+
 
 
 ---
