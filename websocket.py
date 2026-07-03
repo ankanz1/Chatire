@@ -75,8 +75,9 @@ async def handler(websocket):
 
 
 async def main():
-    async with websockets.serve(handler, "localhost", 8081):
-        print("WebSocket server started on ws://localhost:8081")
+    port = int(os.environ.get("PORT", 8081))
+    async with websockets.serve(handler, "0.0.0.0", port):
+        print(f"WebSocket server started on ws://0.0.0.0:{port}")
         await asyncio.Future()  # run forever
 
 
