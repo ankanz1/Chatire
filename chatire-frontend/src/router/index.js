@@ -7,6 +7,11 @@ Vue.use(Router)
 
 const router = new Router({
   routes: [
+    // Root redirect — always land on the chat welcome screen
+    {
+      path: '/',
+      redirect: '/chats'
+    },
     {
       path: '/chats/:uri?',
       name: 'Chat',
@@ -16,15 +21,29 @@ const router = new Router({
       path: '/auth',
       name: 'UserAuth',
       component: UserAuth
+    },
+    // Catch-all — any unknown path goes to chat welcome screen
+    {
+      path: '*',
+      redirect: '/chats'
     }
   ]
 })
 
 router.beforeEach((to, from, next) => {
-  if (sessionStorage.getItem('authToken') !== null || to.path === '/auth') {
+  const isAuthenticated = sessionStorage.getItem('authToken') !== null
+
+  if (isAuthenticated || to.path === '/auth') {
     next()
   } else {
-    next({ path: '/auth', query: { redirect: to.fullPath } })
+    // Only store the redirect if the destination is a meaningful chat path
+    // Avoid storing '/' or '*' which have no mapped component
+    const redirect = to.path.startsWith('/chats') ? to.fullPath : null
+    if (redirect) {
+      next({ path: '/auth', query: { redirect } })
+    } else {
+      next('/auth')
+    }
   }
 })
 
