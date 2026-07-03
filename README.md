@@ -131,6 +131,7 @@ Make sure you have the following installed:
 ## Working Demo:
 <img width="1906" height="968" alt="image" src="https://github.com/user-attachments/assets/7c095881-158f-4d38-98fd-dcc50fd041ec" />
 
+<img width="1280" height="720" alt="Chatire_working demo" src="https://github.com/user-attachments/assets/8dc21bb7-b4e6-4588-a5b7-dd7df3baad1e" />
 
 
 ---
