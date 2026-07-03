@@ -404,9 +404,18 @@ export default {
   created () {
     this.username = sessionStorage.getItem('username')
 
+    const self = this
     $.ajaxSetup({
       beforeSend: function (xhr) {
         xhr.setRequestHeader('Authorization', `JWT ${sessionStorage.getItem('authToken')}`)
+      },
+      error: function (xhr) {
+        if (xhr.status === 401) {
+          sessionStorage.removeItem('authToken')
+          sessionStorage.removeItem('refreshToken')
+          sessionStorage.removeItem('username')
+          self.$router.push('/auth')
+        }
       }
     })
 
