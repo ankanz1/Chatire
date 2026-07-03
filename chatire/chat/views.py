@@ -137,9 +137,12 @@ class ChatSessionMessageView(APIView):
                 'message': chat_session_message.to_json()
             }
         }
-        notify.send(
-            sender=self.__class__, **notif_args, channels=['websocket']
-        )
+        try:
+            notify.send(
+                sender=self.__class__, **notif_args, channels=['websocket']
+            )
+        except Exception as e:
+            print(f"Failed to send websocket notification: {e}")
 
         return Response ({
             'status': 'SUCCESS', 'uri': chat_session.uri, 'message': message,
@@ -172,9 +175,12 @@ class TypingView(APIView):
                 'message': typing_payload
             }
         }
-        notify.send(
-            sender=self.__class__, **notif_args, channels=['websocket']
-        )
+        try:
+            notify.send(
+                sender=self.__class__, **notif_args, channels=['websocket']
+            )
+        except Exception as e:
+            print(f"Failed to send typing notification: {e}")
         return Response({'status': 'OK'})
 
 
