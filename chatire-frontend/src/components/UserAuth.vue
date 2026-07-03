@@ -104,6 +104,7 @@
       },
 
       signUp () {
+        console.log('signUp method triggered with payload:', { username: this.username, email: this.email })
         const payload = {
           username: this.username,
           password: this.password,
@@ -111,11 +112,13 @@
         }
         this.loading = true
         $.post(`${process.env.API_URL}/auth/users/`, payload, (data) => {
+          console.log('signUp succeeded:', data)
           this.loading = false
           this.showToast('Account created! Signing you in…', 'success')
           setTimeout(() => this.signIn(), 800)
         })
         .fail((response) => {
+          console.error('signUp failed:', response)
           this.loading = false
           try {
             const err = JSON.parse(response.responseText)
@@ -128,10 +131,12 @@
       },
 
       signIn () {
+        console.log('signIn method triggered with username:', this.username)
         const credentials = { username: this.username, password: this.password }
         this.loading = true
 
         $.post(`${process.env.API_URL}/auth/jwt/create/`, credentials, (data) => {
+          console.log('signIn succeeded with tokens:', data)
           this.loading = false
           sessionStorage.setItem('authToken', data.access)
           sessionStorage.setItem('refreshToken', data.refresh)
@@ -141,6 +146,7 @@
           this.$router.push(redirect)
         })
         .fail((response) => {
+          console.error('signIn failed:', response)
           this.loading = false
           this.showToast('Invalid credentials. Please try again.', 'error')
         })
