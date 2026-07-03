@@ -24,6 +24,13 @@
 
 ---
 
+## Key Innovations
+
+*   **🔒 Obfuscated Security Perimeter**: Uses standard JWT lifecycles but paths the token rotation behind an ambiguous router segment (`/this/is/hard/to/find/`) to disrupt automated credential scanners.
+*   **📡 Dual-Channel Synchronization (Failsafe Fallback)**: If a network barrier or firewall closes the WebSocket port (`wss://`), the client instantly and silently transitions to **Adaptive HTTP Polling** (every 3s) to prevent any chat interruption.
+*   **🔄 Pure Non-Blocking Core**: Stripped of conflicting monkey-patch systems (like legacy gevent overrides) to allow Python's native `asyncio` event loop to execute at maximum throughput.
+  
+---
 ## 🏗 System Architecture
 
 ```mermaid
