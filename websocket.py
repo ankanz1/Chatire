@@ -1,6 +1,3 @@
-"""Receive messages from RabbitMQ and send them over the websocket."""
-from gevent import monkey
-monkey.patch_all()
 import os
 import asyncio
 import websockets

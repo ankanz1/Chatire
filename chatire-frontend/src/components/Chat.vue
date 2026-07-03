@@ -397,7 +397,8 @@ export default {
       headerMemberSearchQuery: '',
       headerInviteSearchResults: [],
       headerSearchDebounce: null,
-      showMembersModal: false
+      showMembersModal: false,
+      pollingInterval: null
     }
   },
 
@@ -433,6 +434,7 @@ export default {
 
   beforeDestroy () {
     document.removeEventListener('click', this.closeEmojiOnOutsideClick)
+    this.stopPolling()
   },
 
   updated () {
@@ -445,6 +447,7 @@ export default {
 
   watch: {
     '$route' (to, from) {
+      this.stopPolling()
       if (to.params.uri) {
         this.joinChatSession()
         this.connectToWebSocket()
@@ -768,18 +771,33 @@ export default {
       })
     },
 
-    /* ── WebSocket ─────────────────────────────────────────── */
+    /* ── WebSocket & Fallback Polling ──────────────────────── */
     connectToWebSocket () {
-      const websocket = new WebSocket(`${process.env.WS_URL}/${this.$route.params.uri}`)
-      websocket.onopen  = this.onOpen
-      websocket.onclose = this.onClose
-      websocket.onmessage = this.onMessage
-      websocket.onerror = this.onError
+      if (!process.env.WS_URL || process.env.WS_URL.includes('undefined')) {
+        console.warn('WS_URL is not set. Falling back to HTTP polling.')
+        this.startPolling()
+        return
+      }
+      try {
+        const websocket = new WebSocket(`${process.env.WS_URL}/${this.$route.params.uri}`)
+        websocket.onopen  = this.onOpen
+        websocket.onclose = this.onClose
+        websocket.onmessage = this.onMessage
+        websocket.onerror = this.onError
+      } catch (e) {
+        console.error('WebSocket initialization failed, falling back to polling:', e)
+        this.startPolling()
+      }
     },
 
-    onOpen  (event) { console.log('Connection opened.', event.data) },
+    onOpen  (event) {
+      console.log('WebSocket connection opened.')
+      this.stopPolling()
+    },
+
     onClose (event) {
-      console.log('Connection closed.', event.data)
+      console.log('WebSocket connection closed. Reconnecting in 5s...')
+      this.startPolling()
       setTimeout(this.connectToWebSocket, 5000)
     },
 
@@ -820,7 +838,44 @@ export default {
       }
     },
 
-    onError (event) { console.error('WebSocket error:', event) }
+    onError (event) {
+      console.error('WebSocket error:', event)
+      this.startPolling()
+    },
+
+    startPolling () {
+      if (this.pollingInterval) return
+      this.pollingInterval = setInterval(this.pollChatSessionHistory, 3000)
+    },
+
+    stopPolling () {
+      if (this.pollingInterval) {
+        clearInterval(this.pollingInterval)
+        this.pollingInterval = null
+      }
+    },
+
+    pollChatSessionHistory () {
+      if (!this.$route.params.uri) return
+      $.get(`${process.env.API_URL}/api/chats/${this.$route.params.uri}/messages/`, (data) => {
+        if (data.messages && data.messages.length !== this.messages.length) {
+          const chatBody = this.$refs.chatBody
+          const atBottom = chatBody ? (chatBody.scrollTop + chatBody.clientHeight >= chatBody.scrollHeight - 60) : true
+          
+          const diff = data.messages.length - this.messages.length
+          this.messages = data.messages
+          this.currentSessionName = data.name
+          
+          if (atBottom) {
+            this.$nextTick(() => {
+              this.scrollToBottom()
+            })
+          } else if (diff > 0) {
+            this.newMessageCount += diff
+          }
+        }
+      })
+    }
   }
 }
 </script>
