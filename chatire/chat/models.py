@@ -50,7 +50,11 @@ class ChatSessionMessage(TrackableDateModel):
 
     def to_json(self):
         """deserialize message to JSON."""
-        return {'user': deserialize_user(self.user), 'message': self.message}
+        return {
+            'user': deserialize_user(self.user),
+            'message': self.message,
+            'created_at': self.create_date.isoformat(),
+        }
 
 
 class ChatSessionMember(TrackableDateModel):

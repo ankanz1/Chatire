@@ -23,6 +23,30 @@ class ChatSessionView(APIView):
 
     permission_classes = (permissions.IsAuthenticated,)
 
+    def get(self, request, *args, **kwargs):
+        """Return all chat sessions the user belongs to."""
+        user = request.user
+
+        # Sessions where user is owner
+        owned = ChatSession.objects.filter(owner=user)
+        # Sessions where user is a member
+        joined_ids = ChatSessionMember.objects.filter(user=user).values_list(
+            'chat_session_id', flat=True
+        )
+        joined = ChatSession.objects.filter(id__in=joined_ids)
+
+        all_sessions = (owned | joined).distinct().order_by('-create_date')
+
+        sessions_data = [
+            {
+                'uri': s.uri,
+                'created_at': s.create_date.isoformat(),
+                'is_owner': s.owner == user,
+            }
+            for s in all_sessions
+        ]
+        return Response({'sessions': sessions_data})
+
     def post(self, request, *args, **kwargs):
         """create a new chat session."""
         user = request.user
@@ -113,3 +137,34 @@ class ChatSessionMessageView(APIView):
             'status': 'SUCCESS', 'uri': chat_session.uri, 'message': message,
             'user': deserialize_user(user)
         })
+
+
+class TypingView(APIView):
+    """Broadcast a typing event to all users in a chat session."""
+
+    permission_classes = (permissions.IsAuthenticated,)
+
+    def post(self, request, *args, **kwargs):
+        """Publish a typing signal to the room's RabbitMQ exchange."""
+        uri = kwargs['uri']
+        user = request.user
+
+        typing_payload = {
+            '__typing__': True,
+            'user': deserialize_user(user),
+        }
+        notif_args = {
+            'source': user,
+            'source_display_name': user.get_full_name(),
+            'category': 'chat', 'action': 'Typing',
+            'obj': 0,
+            'short_description': '', 'silent': True,
+            'extra_data': {
+                'uri': uri,
+                'message': typing_payload
+            }
+        }
+        notify.send(
+            sender=self.__class__, **notif_args, channels=['websocket']
+        )
+        return Response({'status': 'OK'})

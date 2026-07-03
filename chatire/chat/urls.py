@@ -9,4 +9,5 @@ urlpatterns = [
     path('chats/', views.ChatSessionView.as_view()),
     path('chats/<uri>/', views.ChatSessionView.as_view()),
     path('chats/<uri>/messages/', views.ChatSessionMessageView.as_view()),
+    path('chats/<uri>/typing/', views.TypingView.as_view()),
 ]
