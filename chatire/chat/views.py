@@ -7,6 +7,7 @@ from .models import (
 
 from rest_framework.views import APIView
 from rest_framework.response import Response
+# pyrefly: ignore [missing-import]
 from rest_framework import permissions
 from django.http import Http404
 
@@ -81,8 +82,8 @@ class ChatSessionView(APIView):
 
         owner = deserialize_user(owner)
         members = [
-            deserialize_user(chat_session.user) 
-            for chat_session in chat_session.members.all()
+            deserialize_user(member.user) 
+            for member in chat_session.members.all()
         ]
         members.insert(0, owner)  # Make the owner the first member 
         return Response ({

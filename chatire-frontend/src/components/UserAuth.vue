@@ -104,8 +104,13 @@
       },
 
       signUp () {
+        const payload = {
+          username: this.username,
+          password: this.password,
+          email: this.email
+        }
         this.loading = true
-        $.post('http://localhost:8000/auth/users/', this.$data, (data) => {
+        $.post('http://localhost:8000/auth/users/', payload, (data) => {
           this.loading = false
           this.showToast('Account created! Signing you in…', 'success')
           setTimeout(() => this.signIn(), 800)
