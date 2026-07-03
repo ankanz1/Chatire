@@ -11,15 +11,24 @@
 
     <!-- ── Active chat session ──────────────────────────────── -->
     <div v-if="sessionStarted" class="chat-window">
-
       <!-- Sidebar -->
       <transition name="sidebar-slide">
         <div v-if="sidebarOpen" class="sidebar">
           <div class="sidebar-header">
-            <span>Chat History</span>
+            <span>Chat Sessions & Members</span>
             <button class="sidebar-close" @click="sidebarOpen = false">✕</button>
           </div>
+
           <div class="sidebar-body">
+            <!-- Create Group section -->
+            <div class="section-title">Create Group</div>
+            <div class="sidebar-group-create">
+              <input v-model="newGroupName" type="text" placeholder="Group Name" class="sidebar-group-input" />
+              <button class="sidebar-group-btn" @click="createGroupChat">Create</button>
+            </div>
+
+            <!-- Sessions list -->
+            <div class="section-title" style="margin-top: 15px;">Rooms & Chats</div>
             <div v-if="chatSessions.length === 0" class="sidebar-empty">No previous sessions.</div>
             <div
               v-for="session in chatSessions"
@@ -28,15 +37,49 @@
               :class="{ 'session-active': session.uri === $route.params.uri }"
               @click="goToSession(session.uri)"
             >
-              <div class="session-icon">{{ session.is_owner ? '👑' : '💬' }}</div>
+              <div class="session-icon">{{ session.name ? '👥' : (session.is_owner ? '👑' : '💬') }}</div>
               <div class="session-info">
-                <div class="session-uri">{{ session.uri.substring(0, 12) }}…</div>
+                <div class="session-uri">{{ getSessionDisplayName(session) }}</div>
                 <div class="session-date">{{ formatDate(session.created_at) }}</div>
               </div>
             </div>
+
+            <!-- Members list of active session -->
+            <div class="section-title" style="margin-top: 20px;">Room Members</div>
+            <div class="active-members">
+              <div v-for="member in activeMembers" :key="member.id" class="member-item">
+                <span class="member-status-dot"></span>
+                <span class="member-name">{{ member.username }}</span>
+                <span v-if="member.username === activeSessionOwner" class="member-role">owner</span>
+              </div>
+            </div>
+
+            <!-- Add member section -->
+            <div class="section-title" style="margin-top: 20px;">Add Member</div>
+            <div class="add-member-container">
+              <input
+                v-model="memberSearchQuery"
+                type="text"
+                placeholder="Search username..."
+                class="member-search-input"
+                @input="searchUsersForInvite"
+              />
+              <div v-if="inviteSearchResults.length > 0" class="search-dropdown">
+                <div
+                  v-for="user in inviteSearchResults"
+                  :key="user.username"
+                  class="dropdown-item"
+                  @click="inviteUserToRoom(user.username)"
+                >
+                  {{ user.username }}
+                </div>
+              </div>
+            </div>
           </div>
+
           <div class="sidebar-footer">
-            <button class="sidebar-new-btn" @click="startChatSession">+ New Session</button>
+            <button class="sidebar-new-btn" @click="showWelcomeScreen">Go to Welcome Screen</button>
+            <button class="sidebar-logout-btn" @click="logOut">Log Out</button>
           </div>
         </div>
       </transition>
@@ -51,9 +94,9 @@
             </svg>
           </button>
           <div class="app-logo-text">Chatire</div>
-          <div class="room-chip">
+          <div class="room-chip" @click="showMembersModal = true" style="cursor: pointer;" title="Show members list">
             <span class="online-dot"></span>
-            {{ $route.params.uri ? $route.params.uri.substring(0, 10) + '…' : 'Room' }}
+            {{ currentSessionName || ($route.params.uri ? $route.params.uri.substring(0, 10) + '…' : 'Room') }}
           </div>
         </div>
         <div class="header-right">
@@ -67,8 +110,57 @@
               <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
               <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
             </svg>
-            <span>{{ linkCopied ? '✓ Copied!' : 'Copy Invite Link' }}</span>
+            <span>{{ linkCopied ? '✓ Copied!' : 'Copy Invite' }}</span>
           </button>
+        </div>
+      </div>
+
+      <!-- Members info Modal Overlay -->
+      <transition name="modal-fade">
+        <div v-if="showMembersModal" class="members-modal-overlay" @click="showMembersModal = false">
+          <div class="members-modal-card" @click.stop>
+            <div class="modal-header-section">
+              <h3 class="modal-title">{{ currentSessionName || 'Room Details' }}</h3>
+              <p class="modal-count">{{ activeMembers.length }} Members</p>
+              <button class="modal-close-btn" @click="showMembersModal = false">✕</button>
+            </div>
+            <div class="modal-body-section">
+              <div v-for="member in activeMembers" :key="member.id" class="modal-member-item">
+                <div class="modal-member-avatar" :style="{ background: getAvatarColor(member.username) }">
+                  {{ member.username[0].toUpperCase() }}
+                </div>
+                <div class="modal-member-info">
+                  <div class="modal-member-name">{{ member.username }}</div>
+                  <div class="modal-member-email" v-if="member.email">{{ member.email }}</div>
+                </div>
+                <span v-if="member.username === activeSessionOwner" class="modal-member-role">owner</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </transition>
+
+      <!-- Quick Add User Bar -->
+      <div class="add-user-bar">
+        <div class="add-user-inner">
+          <span class="add-user-icon">👤➕</span>
+          <input
+            v-model="headerMemberSearchQuery"
+            type="text"
+            placeholder="Add user to group by username..."
+            class="header-search-input"
+            @input="searchUsersForHeaderInvite"
+          />
+        </div>
+        <div v-if="headerInviteSearchResults.length > 0" class="header-search-dropdown">
+          <div
+            v-for="user in headerInviteSearchResults"
+            :key="user.username"
+            class="header-dropdown-item"
+            @click="inviteUserFromHeader(user.username)"
+          >
+            Add <strong>{{ user.username }}</strong>
+          </div>
         </div>
       </div>
 
@@ -182,16 +274,73 @@
       <div class="welcome-card">
         <div class="welcome-logo">Chatire</div>
         <div class="welcome-icon">🚀</div>
-        <h2 class="welcome-title">Ready to Connect?</h2>
-        <p class="welcome-sub">
-          Start a new chat session and share the link to chat in real-time with anyone, anywhere.
-        </p>
-        <button @click="startChatSession" class="start-btn">
-          <span>Start Chatting</span>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-            <line x1="5" y1="12" x2="19" y2="12"/>
-            <polyline points="12 5 19 12 12 19"/>
-          </svg>
+        <h2 class="welcome-title">Welcome, {{ username }}!</h2>
+        
+        <!-- Toggle options tabs -->
+        <div class="welcome-tabs">
+          <button :class="['w-tab-btn', welcomeTab === 'start' ? 'active' : '']" @click="welcomeTab = 'start'">Quick Start</button>
+          <button :class="['w-tab-btn', welcomeTab === 'group' ? 'active' : '']" @click="welcomeTab = 'group'">New Group</button>
+          <button :class="['w-tab-btn', welcomeTab === 'search' ? 'active' : '']" @click="welcomeTab = 'search'">Search Users</button>
+        </div>
+
+        <div class="tab-pane-content">
+          <!-- Tab 1: Quick Start -->
+          <div v-if="welcomeTab === 'start'">
+            <p class="welcome-sub">
+              Start an instant chat session and share the link to chat in real-time.
+            </p>
+            <button @click="startChatSession(null)" class="start-btn">
+              <span>Start Chatting</span>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <line x1="5" y1="12" x2="19" y2="12"/>
+                <polyline points="12 5 19 12 12 19"/>
+              </svg>
+            </button>
+          </div>
+
+          <!-- Tab 2: Create Group -->
+          <div v-if="welcomeTab === 'group'">
+            <p class="welcome-sub">Create a group and add multiple friends to chat together.</p>
+            <form @submit.prevent="createGroupChat" class="group-form">
+              <input v-model="newGroupName" type="text" placeholder="Group Name" class="group-input" required />
+              <button type="submit" class="start-btn">
+                <span>Create Group</span>
+              </button>
+            </form>
+          </div>
+
+          <!-- Tab 3: Search Users -->
+          <div v-if="welcomeTab === 'search'">
+            <p class="welcome-sub">Search other users on Chatire to start a direct message.</p>
+            <input
+              v-model="userSearchQuery"
+              type="text"
+              placeholder="Search by username..."
+              class="group-input"
+              @input="searchUsersForDirectMessage"
+            />
+            <div v-if="searchResults.length > 0" class="search-results-list">
+              <div
+                v-for="user in searchResults"
+                :key="user.username"
+                class="search-result-item"
+                @click="startDirectMessage(user.username)"
+              >
+                <div class="result-avatar" :style="{ background: getAvatarColor(user.username) }">
+                  {{ user.username[0].toUpperCase() }}
+                </div>
+                <div class="result-username">{{ user.username }}</div>
+                <div class="result-action">Chat</div>
+              </div>
+            </div>
+            <div v-else-if="userSearchQuery.trim() !== ''" class="search-empty">
+              No users found matching "{{ userSearchQuery }}"
+            </div>
+          </div>
+        </div>
+
+        <button v-if="chatSessions.length > 0" @click="sidebarOpen = true" class="history-toggle-btn">
+          View Chat History ({{ chatSessions.length }})
         </button>
       </div>
     </div>
@@ -232,7 +381,23 @@ export default {
         '🐶','🐱','🐭','🦊','🐻','🐼','🐨','🐸','🐵','🦁',
         '🍕','🍔','🍟','🍣','🍦','🎂','🍩','🍪','🍫','🍿',
         '⚽','🏀','🏈','⚾','🎾','🏐','🎮','🎲','♟️','🎯',
-      ]
+      ],
+      // Group & Search features (New)
+      welcomeTab: 'start',
+      newGroupName: '',
+      userSearchQuery: '',
+      searchResults: [],
+      activeMembers: [],
+      activeSessionOwner: '',
+      currentSessionName: '',
+      memberSearchQuery: '',
+      inviteSearchResults: [],
+      memberSearchDebounce: null,
+      directSearchDebounce: null,
+      headerMemberSearchQuery: '',
+      headerInviteSearchResults: [],
+      headerSearchDebounce: null,
+      showMembersModal: false
     }
   },
 
@@ -254,7 +419,6 @@ export default {
     setTimeout(() => { this.loading = false }, 2000)
     setInterval(this.refreshToken, 240000)
 
-    // Close emoji picker on outside click
     document.addEventListener('click', this.closeEmojiOnOutsideClick)
   },
 
@@ -272,9 +436,13 @@ export default {
 
   watch: {
     '$route' (to, from) {
-      if (to.params.uri && to.params.uri !== from.params.uri) {
+      if (to.params.uri) {
         this.joinChatSession()
         this.connectToWebSocket()
+      } else {
+        this.sessionStarted = false
+        this.currentSessionName = ''
+        this.activeMembers = []
       }
     }
   },
@@ -298,6 +466,14 @@ export default {
         hash = username.charCodeAt(i) + ((hash << 5) - hash)
       }
       return colors[Math.abs(hash) % colors.length]
+    },
+
+    /* ── Display Name for Sidebar Sessions ──────────────────── */
+    getSessionDisplayName (session) {
+      if (session.name) return session.name
+      // If it's a DM, find the user that is not us
+      const otherMember = session.members.find(m => m.username !== this.username)
+      return otherMember ? otherMember.username : `Session ${session.uri.substring(0, 5)}`
     },
 
     /* ── Timestamps ────────────────────────────────────────── */
@@ -358,7 +534,7 @@ export default {
       }
     },
 
-    /* ── Sidebar ───────────────────────────────────────────── */
+    /* ── Sidebar & History ──────────────────────────────────── */
     toggleSidebar () {
       this.sidebarOpen = !this.sidebarOpen
       if (this.sidebarOpen) this.fetchChatHistory()
@@ -375,6 +551,19 @@ export default {
       if (uri !== this.$route.params.uri) {
         this.$router.push(`/chats/${uri}/`)
       }
+    },
+
+    showWelcomeScreen () {
+      this.sidebarOpen = false
+      this.$router.push('/chats/')
+    },
+
+    logOut () {
+      sessionStorage.removeItem('authToken')
+      sessionStorage.removeItem('refreshToken')
+      sessionStorage.removeItem('username')
+      this.sessionStarted = false
+      this.$router.push('/auth')
     },
 
     /* ── Smart scroll ──────────────────────────────────────── */
@@ -397,6 +586,113 @@ export default {
       }
     },
 
+    /* ── Group & Direct Messaging Logic ─────────────────────── */
+    createGroupChat () {
+      if (!this.newGroupName.trim()) return
+      this.startChatSession(this.newGroupName.trim())
+      this.newGroupName = ''
+    },
+
+    searchUsersForDirectMessage () {
+      clearTimeout(this.directSearchDebounce)
+      if (!this.userSearchQuery.trim()) {
+        this.searchResults = []
+        return
+      }
+      this.directSearchDebounce = setTimeout(() => {
+        $.get(`http://localhost:8000/api/users/search/?q=${this.userSearchQuery}`, (data) => {
+          this.searchResults = data.users || []
+        })
+      }, 300)
+    },
+
+    startDirectMessage (targetUsername) {
+      // Create session, then add the user to it
+      $.post('http://localhost:8000/api/chats/', (data) => {
+        const uri = data.uri
+        $.ajax({
+          url: `http://localhost:8000/api/chats/${uri}/`,
+          data: { username: targetUsername },
+          type: 'PATCH',
+          success: () => {
+            this.sessionStarted = true
+            this.$router.push(`/chats/${uri}/`)
+            this.fetchChatHistory()
+            this.userSearchQuery = ''
+            this.searchResults = []
+          }
+        })
+      })
+      .fail(() => this.showToast('Failed to start chat.', 'error'))
+    },
+
+    searchUsersForInvite () {
+      clearTimeout(this.memberSearchDebounce)
+      if (!this.memberSearchQuery.trim()) {
+        this.inviteSearchResults = []
+        return
+      }
+      this.memberSearchDebounce = setTimeout(() => {
+        $.get(`http://localhost:8000/api/users/search/?q=${this.memberSearchQuery}`, (data) => {
+          // Filter out users already in activeMembers
+          const existingUsernames = this.activeMembers.map(m => m.username)
+          this.inviteSearchResults = (data.users || []).filter(u => !existingUsernames.includes(u.username))
+        })
+      }, 300)
+    },
+
+    inviteUserToRoom (targetUsername) {
+      const uri = this.$route.params.uri
+      $.ajax({
+        url: `http://localhost:8000/api/chats/${uri}/`,
+        data: { username: targetUsername },
+        type: 'PATCH',
+        success: (data) => {
+          this.activeMembers = data.members
+          this.memberSearchQuery = ''
+          this.inviteSearchResults = []
+          this.showToast(`${targetUsername} added to room!`, 'success')
+          this.fetchChatHistory()
+        },
+        error: () => {
+          this.showToast('Failed to add user.', 'error')
+        }
+      })
+    },
+
+    searchUsersForHeaderInvite () {
+      clearTimeout(this.headerSearchDebounce)
+      if (!this.headerMemberSearchQuery.trim()) {
+        this.headerInviteSearchResults = []
+        return
+      }
+      this.headerSearchDebounce = setTimeout(() => {
+        $.get(`http://localhost:8000/api/users/search/?q=${this.headerMemberSearchQuery}`, (data) => {
+          const existingUsernames = this.activeMembers.map(m => m.username)
+          this.headerInviteSearchResults = (data.users || []).filter(u => !existingUsernames.includes(u.username))
+        })
+      }, 300)
+    },
+
+    inviteUserFromHeader (targetUsername) {
+      const uri = this.$route.params.uri
+      $.ajax({
+        url: `http://localhost:8000/api/chats/${uri}/`,
+        data: { username: targetUsername },
+        type: 'PATCH',
+        success: (data) => {
+          this.activeMembers = data.members
+          this.headerMemberSearchQuery = ''
+          this.headerInviteSearchResults = []
+          this.showToast(`${targetUsername} added to room!`, 'success')
+          this.fetchChatHistory()
+        },
+        error: () => {
+          this.showToast('Failed to add user.', 'error')
+        }
+      })
+    },
+
     /* ── Typing indicator ──────────────────────────────────── */
     handleTyping () {
       if (!this.$route.params.uri || !this.message.trim()) return
@@ -416,9 +712,9 @@ export default {
     },
 
     /* ── Chat session ──────────────────────────────────────── */
-    startChatSession () {
-      this.sidebarOpen = false
-      $.post('http://localhost:8000/api/chats/', (data) => {
+    startChatSession (groupName = null) {
+      const postData = groupName ? { name: groupName } : {}
+      $.post('http://localhost:8000/api/chats/', postData, (data) => {
         this.sessionStarted = true
         this.$router.push(`/chats/${data.uri}/`)
         this.fetchChatHistory()
@@ -444,6 +740,10 @@ export default {
           const user = data.members.find(m => m.username === this.username)
           if (user) {
             this.sessionStarted = true
+            this.activeMembers = data.members
+            this.currentSessionName = data.name
+            // The owner is the first member inserted by view patch method
+            this.activeSessionOwner = data.members[0] ? data.members[0].username : ''
             this.fetchChatSessionHistory()
           }
         }
@@ -453,6 +753,7 @@ export default {
     fetchChatSessionHistory () {
       $.get(`http://localhost:8000/api/chats/${this.$route.params.uri}/messages/`, (data) => {
         this.messages = data.messages
+        this.currentSessionName = data.name
         this.shouldAutoScroll = true
         setTimeout(() => { this.loading = false }, 2000)
       })
@@ -495,7 +796,6 @@ export default {
         this.typingUsers = this.typingUsers.filter(u => u !== sender)
       }
 
-      // Tag with client-side timestamp if server didn't send one
       if (!data.created_at) data.created_at = new Date().toISOString()
 
       const chatBody = this.$refs.chatBody
@@ -550,7 +850,7 @@ export default {
 /* ─── Sidebar ────────────────────────────────────────────── */
 .sidebar {
   position: fixed; top: 0; left: 0; bottom: 0;
-  width: 280px; z-index: 500;
+  width: 290px; z-index: 500;
   background: rgba(18,18,26,0.97);
   backdrop-filter: blur(24px);
   border-right: 1px solid rgba(255,255,255,0.08);
@@ -573,7 +873,15 @@ export default {
   flex: 1; overflow-y: auto; padding: 10px 8px;
   scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.08) transparent;
 }
-.sidebar-empty { font-size: 13px; color: rgba(255,255,255,0.25); text-align: center; padding: 30px 16px; }
+.section-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.35);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  padding: 10px 12px 6px;
+}
+.sidebar-empty { font-size: 13px; color: rgba(255,255,255,0.25); text-align: center; padding: 15px 12px; }
 .session-item {
   display: flex; align-items: center; gap: 12px;
   padding: 10px 12px; border-radius: 10px; cursor: pointer;
@@ -583,8 +891,77 @@ export default {
 .session-active      { background: rgba(108,99,255,0.15) !important; }
 .session-icon        { font-size: 18px; flex-shrink: 0; }
 .session-info        { display: flex; flex-direction: column; gap: 2px; }
-.session-uri         { font-size: 13px; font-weight: 500; color: rgba(255,255,255,0.7); font-family: monospace; }
+.session-uri         { font-size: 13px; font-weight: 500; color: rgba(255,255,255,0.7); }
 .session-date        { font-size: 11px; color: rgba(255,255,255,0.3); }
+
+/* Active members sidebar styling */
+.active-members {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 4px 12px;
+}
+.member-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.65);
+}
+.member-status-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: #43d9ad;
+}
+.member-role {
+  font-size: 9px;
+  background: rgba(108, 99, 255, 0.2);
+  color: #a78bfa;
+  padding: 1px 5px;
+  border-radius: 4px;
+  margin-left: auto;
+}
+
+/* Add member container styling */
+.add-member-container {
+  padding: 4px 12px;
+  position: relative;
+}
+.member-search-input {
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #fff;
+  font-size: 12px;
+  outline: none;
+}
+.member-search-input:focus {
+  border-color: rgba(108, 99, 255, 0.5);
+}
+.search-dropdown {
+  position: absolute;
+  top: 100%; left: 12px; right: 12px;
+  background: #181824;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 8px;
+  max-height: 150px;
+  overflow-y: auto;
+  z-index: 10;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+.dropdown-item {
+  padding: 8px 12px;
+  font-size: 12px;
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.dropdown-item:hover {
+  background: rgba(108, 99, 255, 0.2);
+}
+
 .sidebar-footer      { padding: 12px 12px 20px; border-top: 1px solid rgba(255,255,255,0.06); }
 .sidebar-new-btn {
   width: 100%; padding: 11px;
@@ -807,26 +1184,344 @@ export default {
   position: relative; z-index: 10;
   background: rgba(255,255,255,0.04); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
   border: 1px solid rgba(255,255,255,0.08); border-radius: 28px;
-  padding: 52px 48px; text-align: center; max-width: 440px; width: 90%;
+  padding: 40px 36px; text-align: center; max-width: 460px; width: 90%;
   box-shadow: 0 24px 80px rgba(0,0,0,0.5);
 }
 .welcome-logo {
   font-size: 28px; font-weight: 700; letter-spacing: -0.5px;
   background: linear-gradient(135deg, #6c63ff, #a78bfa, #43d9ad);
   -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
-  margin-bottom: 12px;
+  margin-bottom: 8px;
 }
-.welcome-icon  { font-size: 48px; margin-bottom: 16px; }
-.welcome-title { font-size: 26px; font-weight: 700; color: #fff; margin-bottom: 14px; letter-spacing: -0.5px; }
-.welcome-sub   { font-size: 15px; color: rgba(255,255,255,0.4); line-height: 1.7; margin-bottom: 36px; }
+.welcome-icon  { font-size: 40px; margin-bottom: 12px; }
+.welcome-title { font-size: 24px; font-weight: 700; color: #fff; margin-bottom: 16px; letter-spacing: -0.5px; }
+
+/* Welcome Screen Tabs styling */
+.welcome-tabs {
+  display: flex;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 10px;
+  padding: 3px;
+  margin-bottom: 24px;
+}
+.w-tab-btn {
+  flex: 1;
+  padding: 8px 0;
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  border-radius: 7px;
+  transition: all 0.2s;
+  outline: none;
+}
+.w-tab-btn.active {
+  background: linear-gradient(135deg, #6c63ff, #a78bfa);
+  color: #fff;
+}
+.tab-pane-content {
+  min-height: 160px;
+}
+
+.welcome-sub   { font-size: 14px; color: rgba(255,255,255,0.4); line-height: 1.6; margin-bottom: 24px; }
+
+/* Forms styling in welcome card */
+.group-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
+}
+.group-input {
+  width: 100%;
+  max-width: 320px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #fff;
+  font-size: 14px;
+  outline: none;
+  text-align: center;
+}
+.group-input:focus {
+  border-color: rgba(108, 99, 255, 0.5);
+  box-shadow: 0 0 0 3px rgba(108, 99, 255, 0.1);
+}
+
+/* User search results list in welcome screen */
+.search-results-list {
+  max-height: 180px;
+  overflow-y: auto;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  margin-top: 12px;
+  text-align: left;
+}
+.search-result-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  cursor: pointer;
+  transition: background 0.2s;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+.search-result-item:last-child {
+  border-bottom: none;
+}
+.search-result-item:hover {
+  background: rgba(108, 99, 255, 0.15);
+}
+.result-avatar {
+  width: 30px; height: 30px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: #fff;
+}
+.result-username {
+  font-size: 13px;
+  color: #fff;
+  flex: 1;
+}
+.result-action {
+  font-size: 11px;
+  font-weight: 600;
+  color: #a78bfa;
+  background: rgba(167, 139, 250, 0.15);
+  padding: 3px 8px;
+  border-radius: 6px;
+}
+.search-empty {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.35);
+  margin-top: 16px;
+}
+
 .start-btn {
   display: inline-flex; align-items: center; gap: 10px;
   background: linear-gradient(135deg, #6c63ff, #a78bfa);
-  border: none; border-radius: 14px; padding: 15px 32px;
-  font-family: 'Inter', sans-serif; font-size: 15px; font-weight: 600; color: #fff;
+  border: none; border-radius: 14px; padding: 12px 28px;
+  font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 600; color: #fff;
   cursor: pointer; transition: transform 0.2s, box-shadow 0.2s;
-  box-shadow: 0 8px 28px rgba(108,99,255,0.4);
+  box-shadow: 0 8px 24px rgba(108,99,255,0.4);
 }
-.start-btn:hover  { transform: translateY(-3px); box-shadow: 0 14px 40px rgba(108,99,255,0.55); }
+.start-btn:hover  { transform: translateY(-2px); box-shadow: 0 12px 32px rgba(108,99,255,0.5); }
 .start-btn:active { transform: translateY(0); }
+
+.history-toggle-btn {
+  display: block;
+  margin: 24px auto 0;
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.35);
+  font-size: 12px;
+  text-decoration: underline;
+  cursor: pointer;
+  outline: none;
+}
+.history-toggle-btn:hover {
+  color: #fff;
+}
+
+/* Sidebar Create Group and Logout Styles */
+.sidebar-group-create {
+  display: flex;
+  gap: 6px;
+  padding: 4px 12px;
+}
+.sidebar-group-input {
+  flex: 1;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #fff;
+  font-size: 12px;
+  outline: none;
+}
+.sidebar-group-input:focus {
+  border-color: rgba(108, 99, 255, 0.5);
+}
+.sidebar-group-btn {
+  background: linear-gradient(135deg, #6c63ff, #a78bfa);
+  border: none;
+  border-radius: 6px;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 0 12px;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+.sidebar-group-btn:hover {
+  opacity: 0.9;
+}
+.sidebar-logout-btn {
+  width: 100%;
+  padding: 11px;
+  background: rgba(255, 80, 80, 0.1);
+  border: 1px solid rgba(255, 80, 80, 0.25);
+  border-radius: 10px;
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  color: #ff8080;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-top: 10px;
+}
+.sidebar-logout-btn:hover {
+  background: rgba(255, 80, 80, 0.2);
+  border-color: rgba(255, 80, 80, 0.4);
+  color: #ff9999;
+}
+
+/* Quick Add User Bar Styles */
+.add-user-bar {
+  padding: 10px 20px;
+  background: rgba(255, 255, 255, 0.02);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  position: relative;
+}
+.add-user-inner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 6px 12px;
+}
+.add-user-icon {
+  font-size: 14px;
+}
+.header-search-input {
+  flex: 1;
+  background: none;
+  border: none;
+  outline: none;
+  color: #fff;
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+}
+.header-search-input::placeholder {
+  color: rgba(255, 255, 255, 0.25);
+}
+.header-search-dropdown {
+  position: absolute;
+  top: 100%; left: 20px; right: 20px;
+  background: #181824;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  max-height: 160px;
+  overflow-y: auto;
+  z-index: 100;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+}
+.header-dropdown-item {
+  padding: 10px 16px;
+  font-size: 13px;
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.2s;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+.header-dropdown-item:last-child {
+  border-bottom: none;
+}
+.header-dropdown-item:hover {
+  background: rgba(108, 99, 255, 0.15);
+}
+
+/* Members Modal Styles */
+.members-modal-overlay {
+  position: fixed; inset: 0; z-index: 1000;
+  background: rgba(0,0,0,0.6);
+  backdrop-filter: blur(4px);
+  display: flex; align-items: center; justify-content: center;
+  animation: modalFadeIn 0.25s ease-out;
+}
+@keyframes modalFadeIn {
+  from { opacity: 0; } to { opacity: 1; }
+}
+.members-modal-card {
+  background: rgba(18,18,26,0.95);
+  backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  width: 90%; max-width: 420px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+  display: flex; flex-direction: column;
+  overflow: hidden;
+  animation: cardSlideIn 0.3s cubic-bezier(0.1, 0.9, 0.2, 1);
+}
+@keyframes cardSlideIn {
+  from { transform: translateY(20px); } to { transform: translateY(0); }
+}
+.modal-header-section {
+  padding: 20px;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+  position: relative;
+}
+.modal-title {
+  font-size: 18px; font-weight: 700; color: #fff;
+  margin-bottom: 4px;
+}
+.modal-count {
+  font-size: 12px; color: rgba(255,255,255,0.4);
+  margin-bottom: 0;
+}
+.modal-close-btn {
+  position: absolute; top: 20px; right: 20px;
+  background: none; border: none; color: rgba(255,255,255,0.3);
+  font-size: 18px; cursor: pointer; transition: color 0.2s;
+  line-height: 1;
+}
+.modal-close-btn:hover {
+  color: #fff;
+}
+.modal-body-section {
+  padding: 10px 20px 20px;
+  max-height: 320px; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 12px;
+  scrollbar-width: thin;
+}
+.modal-member-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+}
+.modal-member-item:last-child {
+  border-bottom: none;
+}
+.modal-member-avatar {
+  width: 32px; height: 32px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 600; color: #fff; flex-shrink: 0;
+}
+.modal-member-info {
+  display: flex; flex-direction: column; gap: 2px;
+  flex: 1;
+}
+.modal-member-name {
+  font-size: 13px; font-weight: 600; color: #fff;
+}
+.modal-member-email {
+  font-size: 11px; color: rgba(255,255,255,0.3);
+}
+.modal-member-role {
+  font-size: 9px;
+  background: rgba(108, 99, 255, 0.25);
+  color: #a78bfa;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
 </style>

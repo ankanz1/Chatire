@@ -37,21 +37,26 @@ class ChatSessionView(APIView):
 
         all_sessions = (owned | joined).distinct().order_by('-create_date')
 
-        sessions_data = [
-            {
+        sessions_data = []
+        for s in all_sessions:
+            owner = deserialize_user(s.owner)
+            members = [deserialize_user(m.user) for m in s.members.all()]
+            members.insert(0, owner)
+            sessions_data.append({
                 'uri': s.uri,
+                'name': s.name,
                 'created_at': s.create_date.isoformat(),
                 'is_owner': s.owner == user,
-            }
-            for s in all_sessions
-        ]
+                'members': members
+            })
         return Response({'sessions': sessions_data})
 
     def post(self, request, *args, **kwargs):
         """create a new chat session."""
         user = request.user
+        name = request.data.get('name')
 
-        chat_session = ChatSession.objects.create(owner=user)
+        chat_session = ChatSession.objects.create(owner=user, name=name)
 
         return Response({
             'status': 'SUCCESS', 'uri': chat_session.uri,
@@ -82,6 +87,7 @@ class ChatSessionView(APIView):
         members.insert(0, owner)  # Make the owner the first member 
         return Response ({
             'status': 'SUCCESS', 'members': members,
+            'name': chat_session.name,
             'message': '%s joined the chat' % user.username,
             'user': deserialize_user(user)
         })
@@ -103,6 +109,7 @@ class ChatSessionMessageView(APIView):
 
         return Response({
             'id': chat_session.id, 'uri': chat_session.uri,
+            'name': chat_session.name,
             'messages': messages
         })
 
@@ -168,3 +175,20 @@ class TypingView(APIView):
             sender=self.__class__, **notif_args, channels=['websocket']
         )
         return Response({'status': 'OK'})
+
+
+class UserSearchView(APIView):
+    """Search for users by username."""
+
+    permission_classes = (permissions.IsAuthenticated,)
+
+    def get(self, request, *args, **kwargs):
+        query = request.GET.get('q', '')
+        if not query:
+            return Response({'users': []})
+
+        User = get_user_model()
+        users = User.objects.filter(username__icontains=query).exclude(id=request.user.id)[:10]
+        return Response({
+            'users': [{'username': u.username, 'email': u.email} for u in users]
+        })
