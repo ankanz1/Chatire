@@ -1,6 +1,6 @@
 # 🌌 CHATIRE
 
-> Next-generation, real-time decentralized-feeling messaging architecture built on a high-throughput reactive event loop
+> Next-generation, real-time decentralized-feeling messaging architecture built on a high-throughput reactive event loop. 
 
 [![Django](https://img.shields.io/badge/Backend-Django%20%7C%20DRF-092E20?style=for-the-badge&logo=django&logoColor=white)](https://djangoproject.com)
 [![Vue](https://img.shields.io/badge/Frontend-Vue.js-4FC08D?style=for-the-badge&logo=vuedotjs&logoColor=white)](https://vuejs.org)
@@ -35,11 +35,6 @@
 
 ```mermaid
 graph TD
-    %% Styling
-    classDef client fill:#4FC08D,stroke:#333,stroke-width:2px,color:#fff;
-    classDef api fill:#092E20,stroke:#333,stroke-width:2px,color:#fff;
-    classDef broker fill:#FF6600,stroke:#333,stroke-width:2px,color:#fff;
-    classDef socket fill:#007ACC,stroke:#333,stroke-width:2px,color:#fff;
 
     %% Nodes
     Vue[Vue.js Client]:::client
