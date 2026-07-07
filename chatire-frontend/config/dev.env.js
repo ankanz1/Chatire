@@ -4,6 +4,6 @@ const prodEnv = require('./prod.env')
 
 module.exports = merge(prodEnv, {
   NODE_ENV: '"development"',
-  API_URL: '"http://127.0.0.1:8000"',
-  WS_URL: '"ws://127.0.0.1:8081"'
+  API_URL: '("http://" + window.location.hostname + ":8000")',
+  WS_URL: '("ws://" + window.location.hostname + ":8081")'
 })

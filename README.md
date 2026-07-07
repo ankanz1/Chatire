@@ -95,9 +95,9 @@ Make sure you have the following installed:
     cd chatire
     python manage.py migrate
     ```
-4. Start the Django application server:
+4. Start the Django application server (bind to `0.0.0.0` to allow other devices to connect):
     ```bash
-    python manage.py runserver
+    python manage.py runserver 0.0.0.0:8000
     ```
 
 ---
@@ -109,7 +109,7 @@ Make sure you have the following installed:
     ```bash
     python websocket.py
     ```
-    *The server will bind and listen on `ws://localhost:8081`.*
+    *The server will bind and listen on `ws://0.0.0.0:8081` (accessible on the local network).*
 
 ---
 
