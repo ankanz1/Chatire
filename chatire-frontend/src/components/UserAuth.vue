@@ -121,11 +121,15 @@
           console.error('signUp failed:', response)
           this.loading = false
           try {
-            const err = JSON.parse(response.responseText)
-            const msg = Object.values(err).flat().join(' ')
-            this.showToast(msg, 'error')
+            if (response.responseText) {
+              const err = JSON.parse(response.responseText)
+              const msg = Object.values(err).flat().join(' ')
+              this.showToast(msg, 'error')
+            } else {
+              this.showToast(`Sign up failed: Status ${response.status} (${response.statusText || 'Network Error'})`, 'error')
+            }
           } catch (e) {
-            this.showToast('Sign up failed. Please try again.', 'error')
+            this.showToast(`Sign up failed: Status ${response.status} (${response.statusText || 'Error'})`, 'error')
           }
         })
       },
@@ -148,7 +152,11 @@
         .fail((response) => {
           console.error('signIn failed:', response)
           this.loading = false
-          this.showToast('Invalid credentials. Please try again.', 'error')
+          if (response.status === 0) {
+            this.showToast(`Sign in failed: Network Error (Status 0). Check if Django is running on 0.0.0.0`, 'error')
+          } else {
+            this.showToast('Invalid credentials. Please try again.', 'error')
+          }
         })
       }
     }
