@@ -11,7 +11,7 @@
 
 ## ⚡ The Vision
 
-**Chatire** is a secure, reactive, and visually stunning real-time chat ecosystem designed for high-concurrency communications. By separating the HTTP request-response cycle from the stateful real-time message broadcasting layer, Chatire delivers instant message distribution and premium security standards.
+**Chatire** is a secure, reactive, and visually stunning real-time chat ecosystem designed for high-concurrency communications. By separating the HTTP request-response cycle from the stateful real-time message broadcasting layer, Chatire delivers instant message distribution and premium security standards.....
 
 ---
 
